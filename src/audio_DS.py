@@ -64,6 +64,10 @@ class AudioSet:
         return norm_sample_float
 
 
+    def get_cons_batch(self, N, batchsize):
+        pass
+
+
     def writetofile(self, data, fname, rate):
         data = data / np.max(data)
         data = data * 2 - np.max(data)

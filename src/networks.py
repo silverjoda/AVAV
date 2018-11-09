@@ -88,9 +88,23 @@ class AVA(nn.Module):
 
         return x
 
-    def fit(self, DS, iters):
+    def fit(self, DS, iters, batchsize):
         reconstruction_loss = torch.nn.MSELoss()
         optim = torch.optim.Adam(self.parameters(), lr=3e-4)
 
         for i in range(iters):
-            None
+            # Get batch of data
+            data = DS.get_cons_batch(batchsize)
+
+            # Perform forward pass
+            recon = self.forward(data)
+
+            # Calculate loss
+            loss = reconstruction_loss(data, recon)
+
+            # Perform backward pass
+            loss.backward()
+
+            # Step optimization
+            optim.zero_grad()
+            optim.step()

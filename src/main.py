@@ -12,7 +12,7 @@ def main():
     imres = 128
     FPS = 60
     samplerate = 44100
-    n_iters = 20000
+    iters = 20000
     batchsize = 32
 
     # Make dataset
@@ -24,7 +24,7 @@ def main():
     #network = T.load("trained_networks/ava.pt")
 
     # Train ==============
-    network.train()
+    network.fit(audio_reader, iters, batchsize)
 
     # Test ===============
     test_sample = audio_reader.get_cons_sample(3)
@@ -33,7 +33,6 @@ def main():
 
     vid_encoding = network.encode(test_sample)
     video_reader.write_video(vid_encoding, "test_encoding")
-
 
 
 if __name__ == "__main__":
