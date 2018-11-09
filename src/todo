@@ -1,0 +1,11 @@
+0) Prepare Project structure (DONE)
+1) Prepare dataset avi files (DONE)
+2) Prepare wav dataset files (DONE)
+3) Make video interface and dataset reader (need random consecutive chunks of N frames) (DONE)
+4) Make audio interface and dataset reader (need random consecutive chunks of N samples) (DONE)
+5) Make AVA autoencoder (IP)
+7) Test AVA autoencoder
+
+6) Make VAV autoencoder
+7) Test VAV autoencoder
+
