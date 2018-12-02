@@ -27,17 +27,21 @@ def main():
     network.fit(audio_reader, iters, batchsize)
     T.save(network, "trained_networks/ava.pt")
 
-    exit()
-
     # Test ===============
-    test_sample = audio_reader.get_cons_sample(audio_rate * 3).unsqueeze(0)
-    reconstruction = network.reconstruct(test_sample)
-    assert test_sample.shape == reconstruction.shape, print("Reconstruction does not match initial input")
+    secs = 10
+    N_frames = 10 * 60
+    test_sample = audio_reader.get_cons_sample(audio_rate * secs).cuda()
+    frames = []
+    step =  int(audio_rate / video_rate)
+    for i in range(N_frames):
+        sample = test_sample[:, i * step : i * step + step]
+        enc = network.encode(sample.unsqueeze(0))
+        frames.append(enc)
+
+    vid_encoding = T.cat(frames, 0).permute((0, 2, 3, 1))
+    video_reader.write_video(vid_encoding.detach().cpu().numpy(), "test_encoding")
 
     # TODO: Compare reconstruction and ground truth by MSE, PLOT and FFT
-
-    vid_encoding = network.encode(test_sample)
-    video_reader.write_video(vid_encoding, "test_encoding")
 
 
 if __name__ == "__main__":

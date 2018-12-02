@@ -21,7 +21,7 @@ class VidSet:
         # Read video files and make numpy dataset
         self.dataset = self.make_dataset()
 
-        print("Read dataset consisting of {} frames".format(len(self.dataset)))
+        print("Read video dataset consisting of {} frames".format(len(self.dataset)))
 
 
     def make_dataset(self):
