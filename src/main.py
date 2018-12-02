@@ -39,9 +39,10 @@ def main():
         frames.append(enc)
 
     vid_encoding = T.cat(frames, 0).permute((0, 2, 3, 1))
-    video_reader.write_video(vid_encoding.detach().cpu().numpy(), "test_encoding")
+    video_reader.write_video(vid_encoding.detach().cpu().numpy(), test_sample.detach().cpu().numpy(), "test_encoding")
 
     # TODO: Compare reconstruction and ground truth by MSE, PLOT and FFT
+    # TODO: ADD AUDIO TO VIDEO OUTPUT
 
 
 if __name__ == "__main__":

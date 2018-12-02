@@ -123,7 +123,7 @@ class VidSet:
         return self.dataset[choice_arr]
 
 
-    def write_video(self, data, name):
+    def write_video(self, data, audio, name):
         if len(data.shape) == 3:
             print("Data is GS, need to converting to rgb")
             data = np.repeat(data[:, :, :, np.newaxis], 3, axis=3)
