@@ -10,26 +10,31 @@ def main():
     LOAD = False
 
     imres = 128
-    FPS = 60
-    samplerate = 44100
+    video_rate = 60
+    audio_rate = 44100
     iters = 20000
-    batchsize = 32
+    batchsize = 64
 
     # Make dataset
     video_reader = VidSet(imres)
     audio_reader = AudioSet()
 
     # Make network
-    network = AVA("testnet", samplerate, FPS)
+    network = AVA(audio_rate, video_rate).cuda()
     #network = T.load("trained_networks/ava.pt")
 
     # Train ==============
     network.fit(audio_reader, iters, batchsize)
+    T.save(network, "trained_networks/ava.pt")
+
+    exit()
 
     # Test ===============
-    test_sample = audio_reader.get_cons_sample(3)
+    test_sample = audio_reader.get_cons_sample(audio_rate * 3).unsqueeze(0)
     reconstruction = network.reconstruct(test_sample)
-    assert test_sample.shape == reconstruction.shape, print("Reconstruction does not match initial video")
+    assert test_sample.shape == reconstruction.shape, print("Reconstruction does not match initial input")
+
+    # TODO: Compare reconstruction and ground truth by MSE, PLOT and FFT
 
     vid_encoding = network.encode(test_sample)
     video_reader.write_video(vid_encoding, "test_encoding")

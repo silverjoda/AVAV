@@ -1,6 +1,7 @@
 import numpy as np
 from os import listdir
-from scipy.io import wavfile
+import torch as T
+import torchaudio
 import matplotlib.pyplot as plt
 import os
 
@@ -31,10 +32,18 @@ class AudioSet:
 
         for f in files:
             full_f = os.path.join(self.path, f)
-            samplerate, data = wavfile.read(full_f)
+
+            # Data is [len x num_channels] (num channels = 2 if stereo, 1 if mono)
+            data, sample_rate = torchaudio.load(full_f, normalization=True)
+
+            # If sample is mono then duplicate channel
+            if data.shape[1] == 1:
+                data = data.repeat(1,2)
+
+            # Transpose data to have dimensions [channels, length]
             samplelist.append(data)
 
-        return np.concatenate(samplelist, axis=0)
+        return T.cat(samplelist)
 
 
     def get_cons_sample(self, N):
@@ -46,7 +55,7 @@ class AudioSet:
 
         Returns
         -------
-        N consecutive frames from the video dataset
+        N consecutive samples (individual data points) from the audio dataset
         '''
 
         # Length of dataset
@@ -59,23 +68,21 @@ class AudioSet:
         sample = self.dataset[rnd_pt: rnd_pt + N]
 
         # Normalize and turn to float
-        norm_sample_float = (sample.astype(np.float32) / (32767. / 2)) - 1
+        #norm_sample_float = (sample.astype(np.float32) / (32767. / 2)) - 1
 
-        return norm_sample_float
+        return sample.transpose(1,0)
 
 
     def get_cons_batch(self, N, batchsize):
-        pass
+        samples = []
+        for _ in range(batchsize):
+            samples.append(self.get_cons_sample(N))
+        return T.stack(samples)
 
 
     def writetofile(self, data, fname, rate):
-        data = data / np.max(data)
-        data = data * 2 - np.max(data)
-        print(data.shape)
-        plt.plot(data[:44111])
-        #plt.show()
-        print("Writing data type: {}, min: {}, max: {}".format(data.dtype, np.min(data), np.max(data)))
-        wavfile.write(os.path.join(self.path, fname), rate, data)
+        torchaudio.save(fname, data, rate)  # saves tensor to file
+
 
     def writetostream(self, data):
         raise NotImplementedError
@@ -85,8 +92,6 @@ if __name__ == "__main__":
     # DEBUG#
     #reader = AudioSet()
 
-    samplerate, data = wavfile.read('audio_sources/music/audio_1.wav')
-    print(np.max(data));print(np.min(data))
-
-    # data = np.random.randn(20000)
-    # wavfile.write("shitfile.wav", 44100,data)
+    sound, sample_rate = torchaudio.load('audio_sources/music/audio_4.mp3', normalization=True)
+    print(sound.min(), sound.max())
+    #torchaudio.save('foo_save.mp3', sound, sample_rate)  # saves tensor to file
