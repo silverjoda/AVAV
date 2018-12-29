@@ -1,4 +1,5 @@
 import torch
+import torch as T
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
@@ -134,3 +135,147 @@ class AVA(nn.Module):
 
             if i % 10 == 0:
                 print("Iteration {}/{}, loss: {}".format(i,iters,loss))
+
+
+class AVA_PW(nn.Module):
+    def __init__(self, audio_rate, video_rate):
+        super(AVA_PW, self).__init__()
+
+        # Class parameters
+        self.audio_rate = audio_rate
+        self.video_rate = video_rate
+        self.samples_per_frame = self.audio_rate // self.video_rate
+
+        # Neural network parameters:
+
+        # Audio conv, 1470 audio input samples, 2 channels
+        self.a_conv1 = nn.Conv1d(2, 16, kernel_size=5, stride=5, dilation=2)
+        self.a_conv2 = nn.Conv1d(16, 16, kernel_size=3, stride=2, dilation=1)
+        self.a_conv3 = nn.Conv1d(16, 16, kernel_size=3, stride=2, dilation=1)
+
+        # Video deconv from audio
+        self.v_deconv1 = nn.ConvTranspose2d(72, 48, kernel_size=3, stride=1, dilation=1)
+        self.v_deconv2 = nn.ConvTranspose2d(48, 24, kernel_size=3, stride=1, dilation=1)
+        self.v_deconv3 = nn.ConvTranspose2d(24, 18, kernel_size=3, stride=1, dilation=1)
+        self.v_deconv4 = nn.ConvTranspose2d(18, 6, kernel_size=3, stride=1, dilation=1)
+
+        # Video enc back to audio
+        self.v_conv1 = nn.Conv2d(6, 16, kernel_size=3, stride=1, dilation=1)
+        self.v_conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=1, dilation=1)
+        self.v_conv3 = nn.Conv2d(32, 64, kernel_size=3, stride=1, dilation=1)
+        self.v_conv4 = nn.Conv2d(64, 128, kernel_size=3, stride=1, dilation=1)
+
+        # Audio deconv (output 1470 audio samples, 2 channels)
+        self.a_deconv1 = nn.ConvTranspose1d(36, 32, kernel_size=3, stride=1, dilation=1)
+        self.a_deconv2 = nn.ConvTranspose1d(32, 16, kernel_size=3, stride=1, dilation=1)
+        self.a_deconv3 = nn.ConvTranspose1d(16, 16, kernel_size=5, stride=1, dilation=1)
+        self.a_deconv4 = nn.ConvTranspose1d(16, 2, kernel_size=5, stride=1, dilation=1, padding=2)
+
+        torch.nn.init.xavier_uniform_(self.a_conv1.weight)
+        torch.nn.init.xavier_uniform_(self.a_conv2.weight)
+        torch.nn.init.xavier_uniform_(self.a_conv3.weight)
+
+        torch.nn.init.xavier_uniform_(self.v_deconv1.weight)
+        torch.nn.init.xavier_uniform_(self.v_deconv2.weight)
+        torch.nn.init.xavier_uniform_(self.v_deconv3.weight)
+        torch.nn.init.xavier_uniform_(self.v_deconv4.weight)
+
+        torch.nn.init.xavier_uniform_(self.v_conv1.weight)
+        torch.nn.init.xavier_uniform_(self.v_conv2.weight)
+        torch.nn.init.xavier_uniform_(self.v_conv3.weight)
+        torch.nn.init.xavier_uniform_(self.v_conv4.weight)
+
+        torch.nn.init.xavier_uniform_(self.a_deconv1.weight)
+        torch.nn.init.xavier_uniform_(self.a_deconv2.weight)
+        torch.nn.init.xavier_uniform_(self.a_deconv3.weight)
+        torch.nn.init.xavier_uniform_(self.a_deconv4.weight)
+
+
+    def forward(self, x):
+        x = self.encode(x)
+        x = self.decode(x)
+        return x
+
+
+    def encode(self, x, single=False):
+        # Audio conv, 1470 audio input samples, 2 channels
+        x = F.relu(self.a_conv1(x))
+        x = F.relu(self.a_conv2(x))
+        x = F.relu(self.a_conv3(x))
+
+        # Reshape x
+        x = x.view(x.shape[0], 72, 4, 4)
+
+        # Video deconv from audio
+        x = F.upsample_bilinear(F.relu(self.v_deconv1(x)), scale_factor=2)
+        x = F.upsample_bilinear(F.relu(self.v_deconv2(x)), scale_factor=2)
+        x = F.upsample_bilinear(F.relu(self.v_deconv3(x)), scale_factor=2)
+        x = F.upsample_bilinear(T.tanh(self.v_deconv4(x)), size=128)
+
+        if single:
+            return x[:,:3,:,:]
+
+        return x
+
+
+    def decode(self, x):
+        # Video enc back to audio
+        x = F.avg_pool2d(F.relu(self.v_conv1(x)), (2,2))
+        x = F.avg_pool2d(F.relu(self.v_conv2(x)), (2,2))
+        x = F.avg_pool2d(F.relu(self.v_conv3(x)), (2,2))
+        x = F.avg_pool2d(F.relu(self.v_conv4(x)), (2,2))
+
+        # Reshape
+        x = x.view(x.shape[0], 36, 128)
+
+        x = F.upsample(F.relu(self.a_deconv1(x)), scale_factor=2)
+        x = F.upsample(F.relu(self.a_deconv2(x)), scale_factor=2.5)
+        x = F.upsample(T.tanh(self.a_deconv3(x)), size=(2 * self.samples_per_frame))
+        x = self.a_deconv4(x)
+
+        return x
+
+
+    def fit(self, DS, iters, batchsize):
+        reconstruction_loss = torch.nn.MSELoss()
+        pairwise_loss = torch.nn.MSELoss()
+        optim_recon = torch.optim.Adam(self.parameters(), lr=3e-4, weight_decay=0.001)
+        optim_pairwise = torch.optim.Adam(self.parameters(), lr=3e-5, weight_decay=0.001)
+
+        for i in range(iters):
+            # Get batch of data
+            data = DS.get_cons_batch_pairwise(2 * self.samples_per_frame, batchsize).cuda()
+
+            # Perform forward pass
+            recon = self.forward(data)
+
+            # Calculate loss
+            loss_recon = reconstruction_loss(data, recon)
+
+            # Perform backward pass
+            optim_recon.zero_grad()
+            loss_recon.backward()
+
+            # Step optimization
+            optim_recon.step()
+
+            # Perform encoding pass again
+            encoding = self.encode(data) # (N, 6, 128, 128)
+            p1_encoding = encoding[::2, :3, :, :]
+            p2_encoding = encoding[1::2, 3:, :, :]
+
+            # Calculate loss
+            loss_pairwise = pairwise_loss(p1_encoding, p2_encoding)
+
+            # Perform backward pass
+            optim_pairwise.zero_grad()
+            loss_pairwise.backward()
+
+            # Step optimization
+            optim_pairwise.step()
+
+            if i % 10 == 0:
+                print("Iteration {}/{}, loss_recon: {}, loss_pairwise: {}".format(i, iters, loss_recon, loss_pairwise))
+
+
+

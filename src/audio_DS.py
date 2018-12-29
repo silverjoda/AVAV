@@ -80,6 +80,16 @@ class AudioSet:
         return T.stack(samples)
 
 
+    def get_cons_batch_pairwise(self, N, batchsize):
+        samples = []
+        for _ in range(batchsize):
+            sample = self.get_cons_sample(int(N * 1.5))
+            samples.append(sample[:, :N])
+            samples.append(sample[:, int(N/2):])
+
+        return T.stack(samples)
+
+
     def writetofile(self, data, fname, rate):
         torchaudio.save(fname, data, rate)  # saves tensor to file
 
