@@ -1,5 +1,4 @@
 import torch
-import torch as T
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
@@ -210,7 +209,7 @@ class AVA_PW(nn.Module):
         x = F.upsample_bilinear(F.relu(self.v_deconv1(x)), scale_factor=2)
         x = F.upsample_bilinear(F.relu(self.v_deconv2(x)), scale_factor=2)
         x = F.upsample_bilinear(F.relu(self.v_deconv3(x)), scale_factor=2)
-        x = F.upsample_bilinear(T.tanh(self.v_deconv4(x)), size=128)
+        x = F.upsample_bilinear(F.tanh(self.v_deconv4(x)), size=128)
 
         if single:
             return x[:,:3,:,:]
@@ -230,7 +229,7 @@ class AVA_PW(nn.Module):
 
         x = F.upsample(F.relu(self.a_deconv1(x)), scale_factor=2)
         x = F.upsample(F.relu(self.a_deconv2(x)), scale_factor=2.5)
-        x = F.upsample(T.tanh(self.a_deconv3(x)), size=(2 * self.samples_per_frame))
+        x = F.upsample(F.tanh(self.a_deconv3(x)), size=(2 * self.samples_per_frame))
         x = self.a_deconv4(x)
 
         return x
@@ -244,7 +243,7 @@ class AVA_PW(nn.Module):
 
         for i in range(iters):
             # Get batch of data
-            data = DS.get_cons_batch_pairwise(2 * self.samples_per_frame, batchsize).cuda()
+            data = DS.get_cons_batch(2 * self.samples_per_frame, batchsize).cuda()
 
             # Perform forward pass
             recon = self.forward(data)

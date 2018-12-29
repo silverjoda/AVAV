@@ -12,7 +12,7 @@ def main():
     imres = 128
     video_rate = 60
     audio_rate = 44100
-    iters = 1000
+    iters = 10000
     batchsize = 64
 
     # Make dataset
@@ -25,7 +25,7 @@ def main():
 
     # Train ==============
     network.fit(audio_reader, iters, batchsize)
-    T.save(network, "trained_networks/aAtva.pt")
+    T.save(network, "trained_networks/ava.pt")
 
     # Test ===============
     secs = 30
