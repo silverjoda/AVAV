@@ -12,7 +12,7 @@ def main():
     imres = 128
     video_rate = 60
     audio_rate = 44100
-    iters = 10000
+    iters = 5000
     batchsize = 64
 
     # Make dataset

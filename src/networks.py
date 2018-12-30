@@ -149,14 +149,15 @@ class AVA_PW(nn.Module):
 
         # Audio conv, 1470 audio input samples, 2 channels
         self.a_conv1 = nn.Conv1d(2, 16, kernel_size=5, stride=5, dilation=2)
-        self.a_conv2 = nn.Conv1d(16, 16, kernel_size=3, stride=2, dilation=1)
-        self.a_conv3 = nn.Conv1d(16, 16, kernel_size=3, stride=2, dilation=1)
+        self.a_conv2 = nn.Conv1d(16, 32, kernel_size=3, stride=2, dilation=1)
+        self.a_conv3 = nn.Conv1d(32, 64, kernel_size=3, stride=2, dilation=1)
 
         # Video deconv from audio
         self.v_deconv1 = nn.ConvTranspose2d(72, 48, kernel_size=3, stride=1, dilation=1)
         self.v_deconv2 = nn.ConvTranspose2d(48, 24, kernel_size=3, stride=1, dilation=1)
         self.v_deconv3 = nn.ConvTranspose2d(24, 18, kernel_size=3, stride=1, dilation=1)
-        self.v_deconv4 = nn.ConvTranspose2d(18, 6, kernel_size=3, stride=1, dilation=1)
+        self.v_deconv4 = nn.ConvTranspose2d(18, 18, kernel_size=3, stride=1, dilation=1)
+        self.v_deconv5 = nn.ConvTranspose2d(18, 6, kernel_size=3, stride=1, dilation=1, padding=1)
 
         # Video enc back to audio
         self.v_conv1 = nn.Conv2d(6, 16, kernel_size=3, stride=1, dilation=1)
@@ -166,8 +167,8 @@ class AVA_PW(nn.Module):
 
         # Audio deconv (output 1470 audio samples, 2 channels)
         self.a_deconv1 = nn.ConvTranspose1d(36, 32, kernel_size=3, stride=1, dilation=1)
-        self.a_deconv2 = nn.ConvTranspose1d(32, 16, kernel_size=3, stride=1, dilation=1)
-        self.a_deconv3 = nn.ConvTranspose1d(16, 16, kernel_size=5, stride=1, dilation=1)
+        self.a_deconv2 = nn.ConvTranspose1d(32, 24, kernel_size=3, stride=1, dilation=1)
+        self.a_deconv3 = nn.ConvTranspose1d(24, 16, kernel_size=5, stride=1, dilation=1)
         self.a_deconv4 = nn.ConvTranspose1d(16, 2, kernel_size=5, stride=1, dilation=1, padding=2)
 
         torch.nn.init.xavier_uniform_(self.a_conv1.weight)
@@ -203,13 +204,14 @@ class AVA_PW(nn.Module):
         x = F.relu(self.a_conv3(x))
 
         # Reshape x
-        x = x.view(x.shape[0], 72, 4, 4)
+        x = x.view(x.shape[0], 72, 8, 8)
 
         # Video deconv from audio
-        x = F.upsample_bilinear(F.relu(self.v_deconv1(x)), scale_factor=2)
-        x = F.upsample_bilinear(F.relu(self.v_deconv2(x)), scale_factor=2)
-        x = F.upsample_bilinear(F.relu(self.v_deconv3(x)), scale_factor=2)
-        x = F.upsample_bilinear(F.tanh(self.v_deconv4(x)), size=128)
+        x = F.upsample_bilinear(F.relu(self.v_deconv1(x)), scale_factor=1.7)
+        x = F.upsample_bilinear(F.relu(self.v_deconv2(x)), scale_factor=1.9)
+        x = F.upsample_bilinear(F.relu(self.v_deconv3(x)), scale_factor=2.)
+        x = F.upsample_bilinear(F.relu(self.v_deconv4(x)), size=128)
+        x = F.tanh(self.v_deconv5(x))
 
         if single:
             return x[:,:3,:,:]
